@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인터랙티브 재활 운동 계획</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: A tabbed dashboard SPA. Main tabs for "Phase 1" and "Phase 2" allow users to focus on their current stage. A new dynamic weekly calendar replaces the static chart, showing the current week's plan. The core interaction is enhanced with input fields in each routine table, allowing users to log their daily performance. This transforms the app from a static guide into a personal workout logger. Data is saved to localStorage for persistence. -->
+    <!-- Visualization & Content Choices: 
+        - Weekly Schedule -> Goal: Inform/Organize -> Method: JS-generated HTML grid representing the current week. -> Interaction: Highlights the current day. Justification: More practical and timely than a generic chart.
+        - Daily Routines -> Goal: Organize/Inform/Log -> Method: JS-powered buttons toggle visibility of HTML tables with integrated <input> fields. -> Interaction: Click to show/hide routines, and type to log workout data. Data auto-saves to localStorage on input. Justification: This is the core enhancement, enabling personal tracking and progress monitoring.
+        - All data is from the source report. All tables are standard HTML styled with Tailwind. Charts have been removed based on user feedback.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #F8F7F4;
+        }
+        .tab-btn {
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active {
+            background-color: #4A6C6F;
+            color: #FFFFFF;
+            font-weight: 700;
+        }
+        .tab-btn:not(.active) {
+            background-color: #FFFFFF;
+            color: #4A6C6F;
+        }
+        .routine-btn.active {
+            background-color: #A89F91;
+            color: #FFFFFF;
+            transform: scale(1.05);
+        }
+        .routine-btn {
+            transition: all 0.3s ease;
+        }
+        .day-card {
+            border: 1px solid #E5E7EB;
+            border-radius: 0.75rem;
+            padding: 0.75rem;
+            background-color: #FFFFFF;
+        }
+        .day-card.today {
+            background-color: #4A6C6F;
+            color: #FFFFFF;
+            border-color: #4A6C6F;
+        }
+        .log-input {
+             border: 1px solid #D1D5DB;
+             border-radius: 0.375rem;
+             padding: 0.25rem 0.5rem;
+             width: 100%;
+             transition: border-color 0.2s;
+        }
+        .log-input:focus {
+            outline: none;
+            border-color: #4A6C6F;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-[#4A6C6F]">십자인대 수술 후 재활 운동 계획</h1>
+            <p class="mt-2 text-gray-600">개인의 상태에 맞춰진 인터랙티브 운동 가이드입니다. 통증 발생 시 즉시 중단하세요.</p>
+        </header>
+
+        <div class="mb-8 flex justify-center border-b-2 border-gray-200">
+            <button id="tab-btn-1" class="tab-btn active text-lg font-semibold py-3 px-6 rounded-t-lg -mb-0.5" onclick="switchTab(1)">1단계 (2시간 루틴)</button>
+            <button id="tab-btn-2" class="tab-btn text-lg font-semibold py-3 px-6 rounded-t-lg -mb-0.5" onclick="switchTab(2)">2단계 (1시간 루틴)</button>
+        </div>
+
+        <div id="tab-content-1" class="space-y-8">
+            <section class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-2xl font-bold text-[#4A6C6F] mb-4">1단계 계획: 기반 다지기 (7/28 ~ 8/19)</h2>
+                <p class="text-gray-700">저강도, 저충격 운동을 통해 올바른 운동 습관을 형성하고, 통증 및 붓기를 관리하며 기초 체력과 유연성을 확보하는 데 집중합니다.</p>
+            </section>
+            
+            <section class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-2xl font-bold text-[#4A6C6F] mb-4">금주의 운동 계획</h2>
+                <div id="weekly-schedule-p1" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 text-center">
+                </div>
+            </section>
+
+            <section class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-2xl font-bold text-[#4A6C6F] mb-4">오늘의 운동 기록</h2>
+                <p class="text-gray-700 mb-6">아래 버튼을 클릭하여 오늘의 운동 루틴을 확인하고 기록하세요. 기록은 브라우저에 자동 저장됩니다.</p>
+                <div class="flex flex-wrap justify-center gap-4 mb-6">
+                    <button class="routine-btn p1-routine-btn text-lg font-semibold py-3 px-8 rounded-full shadow-md bg-gray-100 text-gray-800" onclick="showRoutine('p1', 'a')">A 루틴</button>
+                    <button class="routine-btn p1-routine-btn text-lg font-semibold py-3 px-8 rounded-full shadow-md bg-gray-100 text-gray-800" onclick="showRoutine('p1', 'b')">B 루틴</button>
+                    <button class="routine-btn p1-routine-btn text-lg font-semibold py-3 px-8 rounded-full shadow-md bg-gray-100 text-gray-800" onclick="showRoutine('p1', 'c')">유산소 & 유연성</button>
+                </div>
+                
+                <div id="p1-routine-a" class="routine-details hidden overflow-x-auto">
+                    <h3 class="text-xl font-bold mb-4 text-center">A 루틴: 대퇴사두 & 둔근 강화</h3>
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-100"><tr><th class="p-3">운동</th><th class="p-3">목표</th><th class="p-3">수행 기록</th><th class="p-3">비고</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-3">맨몸 스쿼트</td><td class="p-3">3x15-20</td><td class="p-3"><input type="text" id="log-p1-a-1" class="log-input" placeholder="예: 20,20,18" oninput="saveWorkoutData()"></td><td class="p-3">통증 없는 범위</td></tr>
+                            <tr class="border-b"><td class="p-3">레그 프레스</td><td class="p-3">4x15-20</td><td class="p-3"><input type="text" id="log-p1-a-2" class="log-input" placeholder="예: 40kg 15x4" oninput="saveWorkoutData()"></td><td class="p-3">가벼운 무게</td></tr>
+                            <tr class="border-b"><td class="p-3">힙 쓰러스트</td><td class="p-3">4x20</td><td class="p-3"><input type="text" id="log-p1-a-3" class="log-input" placeholder="예: 20,20,20,20" oninput="saveWorkoutData()"></td><td class="p-3">둔근 자극 집중</td></tr>
+                            <tr class="border-b"><td class="p-3">스텝 업</td><td class="p-3">3x15 (각)</td><td class="p-3"><input type="text" id="log-p1-a-4" class="log-input" placeholder="예: 15,15,15" oninput="saveWorkoutData()"></td><td class="p-3">낮은 높이</td></tr>
+                            <tr class="border-b"><td class="p-3">플랭크</td><td class="p-3">3x60초</td><td class="p-3"><input type="text" id="log-p1-a-5" class="log-input" placeholder="예: 60,60,60" oninput="saveWorkoutData()"></td><td class="p-3">초</td></tr>
+                            <tr class="border-b"><td class="p-3">천국의 계단</td><td class="p-3">20분</td><td class="p-3"><input type="text" id="log-p1-a-6" class="log-input" placeholder="예: 20분 완료" oninput="saveWorkoutData()"></td><td class="p-3">분</td></tr>
+                            <tr class="border-b"><td class="p-3">런닝머신(경사)</td><td class="p-3">20분</td><td class="p-3"><input type="text" id="log-p1-a-7" class="log-input" placeholder="예: 20분 완료" oninput="saveWorkoutData()"></td><td class="p-3">조깅 금지</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="p1-routine-b" class="routine-details hidden overflow-x-auto">
+                     <h3 class="text-xl font-bold mb-4 text-center">B 루틴: 햄스트링 & 상체 강화</h3>
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-100"><tr><th class="p-3">운동</th><th class="p-3">목표</th><th class="p-3">수행 기록</th><th class="p-3">비고</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-3">덤벨 RDL</td><td class="p-3">4x15</td><td class="p-3"><input type="text" id="log-p1-b-1" class="log-input" placeholder="예: 5kg 15x4" oninput="saveWorkoutData()"></td><td class="p-3">가벼운 무게</td></tr>
+                            <tr class="border-b"><td class="p-3">라잉 레그 컬</td><td class="p-3">3x15-20</td><td class="p-3"><input type="text" id="log-p1-b-2" class="log-input" placeholder="예: 20kg 15x3" oninput="saveWorkoutData()"></td><td class="p-3">햄스트링 자극</td></tr>
+                            <tr class="border-b"><td class="p-3">카프 레이즈</td><td class="p-3">4x20</td><td class="p-3"><input type="text" id="log-p1-b-3" class="log-input" placeholder="예: 20,20,20,20" oninput="saveWorkoutData()"></td><td class="p-3">종아리 강화</td></tr>
+                            <tr class="border-b"><td class="p-3">랫 풀 다운</td><td class="p-3">4x15</td><td class="p-3"><input type="text" id="log-p1-b-4" class="log-input" placeholder="예: 30kg 15x4" oninput="saveWorkoutData()"></td><td class="p-3">등 상부</td></tr>
+                            <tr class="border-b"><td class="p-3">덤벨 벤치 프레스</td><td class="p-3">4x15</td><td class="p-3"><input type="text" id="log-p1-b-5" class="log-input" placeholder="예: 8kg 15x4" oninput="saveWorkoutData()"></td><td class="p-3">가슴 운동</td></tr>
+                            <tr class="border-b"><td class="p-3">시티드 덤벨 숄더 프레스</td><td class="p-3">3x15</td><td class="p-3"><input type="text" id="log-p1-b-6" class="log-input" placeholder="예: 5kg 15x3" oninput="saveWorkoutData()"></td><td class="p-3">앉아서</td></tr>
+                            <tr class="border-b"><td class="p-3">실내 자전거 (인터벌)</td><td class="p-3">20분</td><td class="p-3"><input type="text" id="log-p1-b-7" class="log-input" placeholder="예: 20분 완료" oninput="saveWorkoutData()"></td><td class="p-3">통증 시 중단</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="p1-routine-c" class="routine-details hidden overflow-x-auto">
+                    <h3 class="text-xl font-bold mb-4 text-center">수요일: 유산소 & 유연성 강화</h3>
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-100"><tr><th class="p-3">운동</th><th class="p-3">시간</th><th class="p-3">수행 기록</th><th class="p-3">비고</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-3">저강도 유산소</td><td class="p-3">40-60분</td><td class="p-3"><input type="text" id="log-p1-c-1" class="log-input" placeholder="예: 자전거 50분" oninput="saveWorkoutData()"></td><td class="p-3">심박수 120-130</td></tr>
+                            <tr class="border-b"><td class="p-3">전신 스트레칭</td><td class="p-3">60분</td><td class="p-3"><input type="text" id="log-p1-c-2" class="log-input" placeholder="예: 60분 완료" oninput="saveWorkoutData()"></td><td class="p-3">유튜브 참고</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <div id="tab-content-2" class="hidden space-y-8">
+            <section class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-2xl font-bold text-[#4A6C6F] mb-4">2단계 계획: 기능 회복 및 강화 (8/20 이후)</h2>
+                <p class="text-gray-700">하루 1시간의 효율적인 전신 운동을 통해 기능적 움직임(가벼운 조깅 등)에 몸을 적응시키고, 운동 강도를 점진적으로 높여나가는 것을 목표로 합니다.</p>
+             </section>
+
+             <section class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-2xl font-bold text-[#4A6C6F] mb-4">금주의 운동 계획</h2>
+                <div id="weekly-schedule-p2" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2 text-center">
+                </div>
+            </section>
+
+            <section class="bg-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-2xl font-bold text-[#4A6C6F] mb-4">오늘의 운동 기록</h2>
+                <p class="text-gray-700 mb-6">월/수/금 주 3회 운동을 기본으로 하며, A와 B 루틴을 번갈아 수행합니다. 기록은 자동 저장됩니다.</p>
+                <div class="flex flex-wrap justify-center gap-4 mb-6">
+                    <button class="routine-btn p2-routine-btn text-lg font-semibold py-3 px-8 rounded-full shadow-md bg-gray-100 text-gray-800" onclick="showRoutine('p2', 'a')">전신 운동 A</button>
+                    <button class="routine-btn p2-routine-btn text-lg font-semibold py-3 px-8 rounded-full shadow-md bg-gray-100 text-gray-800" onclick="showRoutine('p2', 'b')">전신 운동 B</button>
+                </div>
+
+                <div id="p2-routine-a" class="routine-details hidden overflow-x-auto">
+                    <h3 class="text-xl font-bold mb-4 text-center">전신 운동 A</h3>
+                     <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-100"><tr><th class="p-3">운동</th><th class="p-3">목표</th><th class="p-3">수행 기록</th><th class="p-3">비고</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-3">고블릿 스쿼트</td><td class="p-3">4x15</td><td class="p-3"><input type="text" id="log-p2-a-1" class="log-input" placeholder="예: 12kg 15x4" oninput="saveWorkoutData()"></td><td class="p-3">점진적 중량 증가</td></tr>
+                            <tr class="border-b"><td class="p-3">덤벨 벤치 프레스</td><td class="p-3">4x12</td><td class="p-3"><input type="text" id="log-p2-a-2" class="log-input" placeholder="예: 10kg 12x4" oninput="saveWorkoutData()"></td><td class="p-3">무게 증가</td></tr>
+                            <tr class="border-b"><td class="p-3">시티드 케이블 로우</td><td class="p-3">4x12</td><td class="p-3"><input type="text" id="log-p2-a-3" class="log-input" placeholder="예: 40kg 12x4" oninput="saveWorkoutData()"></td><td class="p-3">등 중앙 타겟</td></tr>
+                            <tr class="border-b"><td class="p-3">힙 쓰러스트</td><td class="p-3">3x15</td><td class="p-3"><input type="text" id="log-p2-a-4" class="log-input" placeholder="예: 30kg 15x3" oninput="saveWorkoutData()"></td><td class="p-3">둔근 강화</td></tr>
+                            <tr class="border-b"><td class="p-3">천국의 계단/자전거</td><td class="p-3">15분</td><td class="p-3"><input type="text" id="log-p2-a-5" class="log-input" placeholder="예: 15분 완료" oninput="saveWorkoutData()"></td><td class="p-3">심폐지구력</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="p2-routine-b" class="routine-details hidden overflow-x-auto">
+                    <h3 class="text-xl font-bold mb-4 text-center">전신 운동 B</h3>
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-gray-100"><tr><th class="p-3">운동</th><th class="p-3">목표</th><th class="p-3">수행 기록</th><th class="p-3">비고</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-3">덤벨 RDL</td><td class="p-3">4x15</td><td class="p-3"><input type="text" id="log-p2-b-1" class="log-input" placeholder="예: 10kg 15x4" oninput="saveWorkoutData()"></td><td class="p-3">햄스트링, 둔근</td></tr>
+                            <tr class="border-b"><td class="p-3">랫 풀 다운</td><td class="p-3">4x12</td><td class="p-3"><input type="text" id="log-p2-b-2" class="log-input" placeholder="예: 35kg 12x4" oninput="saveWorkoutData()"></td><td class="p-3">등 상부</td></tr>
+                            <tr class="border-b"><td class="p-3">덤벨 숄더 프레스</td><td class="p-3">4x12</td><td class="p-3"><input type="text" id="log-p2-b-3" class="log-input" placeholder="예: 8kg 12x4" oninput="saveWorkoutData()"></td><td class="p-3">어깨 강화</td></tr>
+                            <tr class="border-b"><td class="p-3">레그 컬</td><td class="p-3">3x15</td><td class="p-3"><input type="text" id="log-p2-b-4" class="log-input" placeholder="예: 25kg 15x3" oninput="saveWorkoutData()"></td><td class="p-3">햄스트링 고립</td></tr>
+                            <tr class="border-b"><td class="p-3">가벼운 조깅</td><td class="p-3">10분</td><td class="p-3"><input type="text" id="log-p2-b-5" class="log-input" placeholder="예: 10분 완료" oninput="saveWorkoutData()"></td><td class="p-3">통증 시 중단</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0];
+        
+        const routineMapP1 = { 0: '휴식', 1: 'A', 2: 'B', 3: 'C', 4: 'A', 5: 'B', 6: '휴식' };
+        const routineMapP2 = { 0: '휴식', 1: 'A', 2: '유산소', 3: 'B', 4: '유산소', 5: 'A', 6: '휴식' };
+        
+        function getWeekArray(date) {
+            const startOfWeek = new Date(date);
+            const day = startOfWeek.getDay();
+            const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+            startOfWeek.setDate(diff);
+            
+            return Array.from({length: 7}).map((_, i) => {
+                const day = new Date(startOfWeek);
+                day.setDate(startOfWeek.getDate() + i);
+                return day;
+            });
+        }
+
+        function renderWeeklySchedule(containerId, routineMap) {
+            const container = document.getElementById(containerId);
+            const weekDays = getWeekArray(today);
+            const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+            
+            container.innerHTML = weekDays.map(day => {
+                const dayString = day.toISOString().split('T')[0];
+                const dayOfWeek = day.getDay();
+                const isToday = dayString === todayString;
+                
+                const routine = routineMap[dayOfWeek];
+                let routineText = '';
+                if (routine === 'A') routineText = 'A 루틴';
+                else if (routine === 'B') routineText = 'B 루틴';
+                else if (routine === 'C') routineText = '유산소/유연성';
+                else if (routine === '유산소') routineText = '가벼운 유산소';
+                else routineText = '적극적 휴식';
+
+                return `
+                    <div class="day-card ${isToday ? 'today' : ''}">
+                        <div class="font-bold">${day.getDate()}일 (${dayNames[dayOfWeek]})</div>
+                        <div class="text-sm mt-1">${routineText}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function switchTab(tabIndex) {
+            document.getElementById('tab-content-1').classList.toggle('hidden', tabIndex !== 1);
+            document.getElementById('tab-content-2').classList.toggle('hidden', tabIndex !== 2);
+            document.getElementById('tab-btn-1').classList.toggle('active', tabIndex === 1);
+            document.getElementById('tab-btn-2').classList.toggle('active', tabIndex === 2);
+            
+            if (tabIndex === 1) {
+                showRoutine('p1', routineMapP1[today.getDay()] || 'a');
+            } else {
+                showRoutine('p2', routineMapP2[today.getDay()] || 'a');
+            }
+        }
+
+        function showRoutine(phase, routineId) {
+            if (!routineId || routineId === '휴식' || routineId === '유산소') {
+                routineId = 'a'; 
+            }
+            
+            const routineButtons = document.querySelectorAll(`.${phase}-routine-btn`);
+            routineButtons.forEach(btn => btn.classList.remove('active'));
+            
+            const routineDetails = document.querySelectorAll(`#tab-content-${phase.slice(1)} .routine-details`);
+            routineDetails.forEach(detail => detail.classList.add('hidden'));
+
+            const selectedRoutine = document.getElementById(`${phase}-routine-${routineId.toLowerCase()}`);
+            if (selectedRoutine) {
+                selectedRoutine.classList.remove('hidden');
+                const matchingButton = Array.from(routineButtons).find(btn => btn.textContent.toLowerCase().includes(routineId.toLowerCase()));
+                if(matchingButton) matchingButton.classList.add('active');
+            }
+            loadWorkoutData();
+        }
+
+        function saveWorkoutData() {
+            const data = {};
+            document.querySelectorAll('.routine-details:not(.hidden) .log-input').forEach(input => {
+                data[input.id] = input.value;
+            });
+            localStorage.setItem(`rehabLog-${todayString}`, JSON.stringify(data));
+        }
+
+        function loadWorkoutData() {
+            const savedData = JSON.parse(localStorage.getItem(`rehabLog-${todayString}`) || '{}');
+            document.querySelectorAll('.log-input').forEach(input => {
+                input.value = savedData[input.id] || '';
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            renderWeeklySchedule('weekly-schedule-p1', routineMapP1);
+            renderWeeklySchedule('weekly-schedule-p2', routineMapP2);
+            
+            const currentTab = localStorage.getItem('rehabLastTab') || 1;
+            switchTab(parseInt(currentTab));
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const tabNum = e.currentTarget.id.includes('1') ? 1 : 2;
+                    localStorage.setItem('rehabLastTab', tabNum);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
